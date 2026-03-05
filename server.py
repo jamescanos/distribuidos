@@ -1,27 +1,33 @@
 import socket
+import threading
 
-# Create a TCP socket (IPv4)
+contador_clientes = 0
+lock = threading.Lock()
+
+def handle_client(conn, addr):
+    global contador_clientes
+
+    name = conn.recv(1024).decode()
+
+    # Sección crítica protegida
+    with lock:
+        contador_clientes += 1
+        numero = contador_clientes
+
+    print(f"Cliente {numero} atendido desde {addr}")
+
+    response = f"Hola {name}, eres el cliente número {numero}"
+    conn.sendall(response.encode())
+
+    conn.close()
+
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-# Bind the server to all interfaces on port 5000
 server.bind(("0.0.0.0", 5000))
+server.listen()
 
-# Listen for incoming connections
-server.listen(1)
+print("Servidor concurrente con lock...")
 
-print("Servidor esperando conexión...")
-
-# Accept a client connection
-conn, addr = server.accept()
-print(f"Cliente conectado desde {addr}")
-
-# Receive the student's name from the client
-student_name = conn.recv(1024).decode()
-
-# Send a personalized message back to the client
-response = f"Hola {student_name}, bienvenido a Programación Distribuida!"
-conn.sendall(response.encode())
-
-# Close the connection
-conn.close()
-server.close()
+while True:
+    conn, addr = server.accept()
+    thread = threading.Thread(target=handle_client, args=(conn, addr))
+    thread.start()
